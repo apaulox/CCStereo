@@ -115,10 +115,12 @@ def model_testing(
         test_loader=None,
         save_visual=True,
         save_root="./Test/spectrogram",
+    test_output_dir=None,
     ):
     model.load_state_dict(torch.load(ckpt_path)['state_dict'])
     training_wrapper = create_training_wrapper(model_config, model, test_config, train_config)
     wandb_logger.watch(training_wrapper)
+    training_wrapper.test_output_dir = test_output_dir
     
     if save_visual:
         fn_ = ckpt_path.split("/")[-3]
@@ -157,7 +159,6 @@ def model_testing(
         num_sanity_val_steps=0,
         check_val_every_n_epoch=5,
     )
-    trainer.global_step = global_step
     trainer.test(training_wrapper, dataloaders=test_loader)
     return
 
@@ -218,7 +219,7 @@ def main():
     ckpt_callback = ModelCheckpoint(
         dirpath=checkpoint_dir, 
         save_top_k=1, 
-        monitor="test/stft_l2_dist_epoch",
+        monitor="val/stft_l2_dist_epoch",
         mode="min",
     )
 
@@ -273,10 +274,11 @@ def main():
     logger.warning("------- Training Setting -------")
     logger.warning(f"Use Optical Flow: {args.use_flow}")
     logger.warning(f"Use Multiple Frames: {args.multi_frames}")
-    trainer.fit(training_wrapper, train_loader, test_loader, ckpt_path=None)
+    trainer.fit(training_wrapper, train_loader, val_loader, ckpt_path=None)
 
-    ckpt_callback.best_model_path = "./logs_ct/FAIRPLAY-5S/run-20241129_075245-fymu0ey3/best_model.pth"
-    best_train_wrapper = load_training_wrapper(ckpt_callback.best_model_path, model_config, model, test_config, train_config)
+    best_model_path = os.path.join(checkpoint_dir, "best_model.pth")
+    if not os.path.isfile(best_model_path):
+        raise FileNotFoundError(f"No validation-selected checkpoint: {best_model_path}")
 
     save_visual = False
     if save_visual:
@@ -301,7 +303,13 @@ def main():
             eval_list = [line.strip() for line in f]
         best_train_wrapper.eval_list = eval_list
 
-    trainer.test(best_train_wrapper, dataloaders=test_loader)
+    model_testing(
+        best_model_path, model=model, epochs=args.epochs,
+        wandb_logger=wandb_logger, model_config=model_config,
+        train_config=train_config, test_config=test_config,
+        test_loader=test_loader, save_visual=False,
+        test_output_dir=os.path.join(log_root, project_name, run_name, "test_outputs"),
+    )
     
 if __name__ == '__main__':
     main()

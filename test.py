@@ -113,10 +113,12 @@ def model_testing(
         test_loader=None,
         save_visual=True,
         save_root="./Test/spectrogram",
+    test_output_dir=None,
     ):
     model.load_state_dict(torch.load(ckpt_path)['state_dict'])
     training_wrapper = create_training_wrapper(model_config, model, test_config, train_config)
     wandb_logger.watch(training_wrapper)
+    training_wrapper.test_output_dir = test_output_dir
     
     if save_visual:
         fn_ = ckpt_path.split("/")[-3]
@@ -229,7 +231,9 @@ def main():
         "weight_decay": args.weight_decay,
     }
     
-    checkpoint_dir = "./logs_ct/FAIRPLAY-5S/run-20241129_075245-fymu0ey3/best_model.pth"
+    checkpoint_dir = args.ckpt_path
+    if not os.path.isfile(checkpoint_dir):
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_dir}")
     model_testing(
         checkpoint_dir,
         model=model, 
@@ -240,6 +244,7 @@ def main():
         test_config=test_config, 
         test_loader=test_loader,
         save_visual=False,
+        test_output_dir=args.save_dir,
     )
     
 if __name__ == '__main__':

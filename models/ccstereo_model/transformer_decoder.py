@@ -7,18 +7,7 @@ import torch
 from torch import nn, Tensor
 from torch.nn import functional as F
 
-from detectron2.config import configurable
-from detectron2.layers import Conv2d
-from detectron2.utils.registry import Registry
-
 from .position_encoding import PositionEmbeddingSine
-# from .maskformer_transformer_decoder import TRANSFORMER_DECODER_REGISTRY
-
-TRANSFORMER_DECODER_REGISTRY = Registry("TRANSFORMER_MODULE")
-TRANSFORMER_DECODER_REGISTRY.__doc__ = """
-Registry for transformer module in MaskFormer.
-"""
-
 class SelfAttentionLayer(nn.Module):
 
     def __init__(self, d_model, nhead, dropout=0.0,
@@ -209,7 +198,6 @@ class MLP(nn.Module):
         return x
 
 
-@TRANSFORMER_DECODER_REGISTRY.register()
 class MultiScaleMaskedTransformerDecoder(nn.Module):
 
     _version = 2
@@ -237,7 +225,6 @@ class MultiScaleMaskedTransformerDecoder(nn.Module):
                     "Please upgrade your models. Applying automatic conversion now ..."
                 )
 
-    @configurable
     def __init__(
         self,
         in_channels,
@@ -328,7 +315,7 @@ class MultiScaleMaskedTransformerDecoder(nn.Module):
         self.input_proj = nn.ModuleList()
         for _ in range(self.num_feature_levels):
             if in_channels != hidden_dim or enforce_input_project:
-                self.input_proj.append(Conv2d(in_channels, hidden_dim, kernel_size=1))
+                self.input_proj.append(nn.Conv2d(in_channels, hidden_dim, kernel_size=1))
                 weight_init.c2_xavier_fill(self.input_proj[-1])
             else:
                 self.input_proj.append(nn.Sequential())

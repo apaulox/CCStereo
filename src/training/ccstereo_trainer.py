@@ -3,6 +3,7 @@ import os
 import typing as tp
 
 import librosa
+import soundfile as sf
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
@@ -139,6 +140,7 @@ class AutoencoderTrainingWrapper(pl.LightningModule):
         self.checkpoint_dir = None
         self.spec_plotter = None
         self.eval_list = []
+        self.test_output_dir = None
 
         self.epochs = train_config["epochs"]
         self.epoch_inters = train_config["epoch_inters"]
@@ -290,10 +292,10 @@ class AutoencoderTrainingWrapper(pl.LightningModule):
 
     @torch.no_grad()
     def validation_step(self, batch, batch_idx):
-        return self.eval_model(batch, batch_idx, save_audio=False, mode='test')  
+        return self.eval_model(batch, batch_idx, save_audio=False, mode='val')
 
     def on_validation_epoch_end(self):
-        mode = 'test'
+        mode = 'val'
         stft_l2_dist_ = self.trainer.callback_metrics[f"{mode}/stft_l2_dist_epoch"]
         env_dist_ = self.trainer.callback_metrics[f"{mode}/env_dist_epoch"]
         wav_dist_ = self.trainer.callback_metrics[f"{mode}/wav_dist_epoch"]
@@ -303,7 +305,7 @@ class AutoencoderTrainingWrapper(pl.LightningModule):
         mag_dist_ = self.trainer.callback_metrics[f"{mode}/mag_dist_epoch"]
         ang_diff = self.trainer.callback_metrics[f"{mode}/ang_diff_epoch"]
 
-        logger.success(f"Testing STFT L2 Dist: {stft_l2_dist_}")
+        logger.success(f"Validation STFT L2 Dist: {stft_l2_dist_}")
 
         if stft_l2_dist_ < self.best_stft_l2_dist:
             self.best_stft_l2_dist = stft_l2_dist_
@@ -435,6 +437,14 @@ class AutoencoderTrainingWrapper(pl.LightningModule):
         
         predicted_binaural = normalize(predicted_binaural)
         gt_binaural = normalize(gt_binaural)
+
+        if save_audio and self.test_output_dir:
+            output_dir = os.path.join(self.test_output_dir, file_id)
+            os.makedirs(output_dir, exist_ok=True)
+            sf.write(os.path.join(output_dir, 'predicted_binaural.wav'),
+                     predicted_binaural.numpy().T, self.sample_rate)
+            sf.write(os.path.join(output_dir, 'input_binaural.wav'),
+                     gt_binaural.numpy().T, self.sample_rate)
 
         results_ = self.get_results(predicted_binaural, gt_binaural, mode=mode)
         self.log_dict(results_, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=1)
