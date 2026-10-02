@@ -1,0 +1,12 @@
+Evaluating testing example 10 : 000121
+Evaluating testing example 20 : 001521
+Evaluating testing example 30 : 001085
+Evaluating testing example 40 : 000696
+Evaluating testing example 50 : 001033
+Evaluating testing example 60 : 000922
+Evaluating testing example 70 : 001858
+Evaluating testing example 80 : 000692
+Evaluating testing example 90 : 001291
+Evaluating testing example 100 : 000255
+STFT L2 Distance:  0.8269819099670992 0.7063546185514901 0.06926376891366223
+Average Envelope Distance:  0.13062535964239103 0.059392529038254246 0.005823916625532395
